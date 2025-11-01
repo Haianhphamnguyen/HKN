@@ -8,7 +8,7 @@ import numpy as np
 st.set_page_config(page_title="Food Recommendation", page_icon="🍴", layout="wide")
 
 # ------------------ PATHS ------------------
-BASE_PATH = r"C:\Users\ADMIN\Downloads\HKN\data"
+BASE_PATH = r"C:\Users\ADMIN\Downloads\HKN\data\data"
 RECOMMEND_FILE = os.path.join(BASE_PATH, "recommendations.pkl")
 RECIPE_INFO_FILE = os.path.join(BASE_PATH, "recipe_info.pkl")
 
@@ -78,4 +78,5 @@ if st.button("🔍 Xem gợi ý món ăn"):
             # Biểu đồ trực quan nhỏ
             st.bar_chart(merged.set_index("name")["est"])
     else:
+
         st.error("Không thể chạy mô hình – vui lòng kiểm tra file pkl.")
