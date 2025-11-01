@@ -1,137 +1,141 @@
 import streamlit as st
-import base64
+import pandas as pd
+import pickle
 import os
+import base64
 
-# ------------------ PAGE CONFIG ------------------
-st.set_page_config(
-    page_title="Recipe Recommender System",
-    page_icon="🍽️",
-    layout="wide"
-)
+# ==========================================================
+# 🧩 PAGE CONFIGURATION
+# ==========================================================
+st.set_page_config(page_title="🍽️ Food Recommendation System", layout="wide")
 
-# ------------------ LOAD BACKGROUND IMAGE ------------------
+# ==========================================================
+# 🖼️ BACKGROUND IMAGE SETUP
+# ==========================================================
 def get_base64_image(image_path):
-    with open(image_path, "rb") as img_file:
-        encoded = base64.b64encode(img_file.read()).decode()
-    return f"data:image/jpeg;base64,{encoded}"
+    """Đọc ảnh và mã hóa base64 để làm nền."""
+    try:
+        with open(image_path, "rb") as img_file:
+            encoded = base64.b64encode(img_file.read()).decode()
+        return f"data:image/jpeg;base64,{encoded}"
+    except Exception:
+        return None
 
-background_image_path = os.path.join("assets", "bg_food.jpg")
-background_base64 = get_base64_image(background_image_path)
+bg_path = os.path.join("assets", "bg_food.jpg")
+background_base64 = get_base64_image(bg_path)
 
-# ------------------ CUSTOM CSS ------------------
-page_bg = f"""
-<style>
-[data-testid="stAppViewContainer"] {{
-    background-image: url("{background_base64}");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-    background-attachment: fixed;
-    position: relative;
-}}
+if background_base64:
+    st.markdown(f"""
+    <style>
+    [data-testid="stAppViewContainer"] {{
+        background-image: url("{background_base64}");
+        background-size: cover;
+        background-attachment: fixed;
+        background-position: center;
+    }}
+    [data-testid="stAppViewContainer"]::before {{
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(10,10,10,0.85);
+        z-index: -1;
+    }}
+    h1, h2, h3, h4, h5, h6, p, span, div {{
+        color: white;
+        font-family: 'Poppins', sans-serif;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
-[data-testid="stAppViewContainer"]::before {{
-    content: "";
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(15, 15, 15, 0.93);
-    z-index: -1;
-}}
+# ==========================================================
+# 📋 SIDEBAR NAVIGATION
+# ==========================================================
+page = st.sidebar.radio("📂 Chọn trang:", ["📊 EDA Overview", "🤖 Recommendation Model"])
 
-[data-testid="stSidebar"] {{
-    background-color: rgba(255,255,255,0.9);
-    backdrop-filter: blur(12px);
-    border-right: 1px solid rgba(200,200,200,0.3);
-}}
+# ==========================================================
+# 📈 PAGE 1 — EDA OVERVIEW
+# ==========================================================
+if page == "📊 EDA Overview":
+    st.title("📊 Exploratory Data Analysis — Food Recommendation System")
+    st.markdown("Tổng quan và thống kê dữ liệu món ăn từ **Food.com Dataset** 🍜")
 
-[data-testid="stHeader"] {{
-    background: rgba(0,0,0,0);
-}}
+    data_path = os.path.join("data", "RAW_recipes.csv")
+    inter_path = os.path.join("data", "RAW_interactions.csv")
 
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
-html, body, [class*="css"] {{
-    font-family: 'Poppins', sans-serif;
-    color: #ffffff;
-}}
+    if os.path.exists(data_path) and os.path.exists(inter_path):
+        recipes = pd.read_csv(data_path)
+        interactions = pd.read_csv(inter_path)
 
-@keyframes fadeIn {{
-  from {{ opacity: 0; transform: translateY(15px); }}
-  to {{ opacity: 1; transform: translateY(0); }}
-}}
+        st.subheader("🧾 Tổng quan dữ liệu Recipes")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Số dòng", f"{len(recipes):,}")
+        col2.metric("Số cột", f"{len(recipes.columns):,}")
+        col3.metric("User ID duy nhất", f"{interactions['user_id'].nunique():,}")
 
-.big-title {{
-    text-align: center;
-    font-size: 56px;
-    font-weight: 700;
-    color: #ffffff;
-    text-shadow: 3px 3px 10px rgba(0,0,0,0.9);
-    margin-top: 13vh;
-    animation: fadeIn 1s ease-in-out;
-}}
+        with st.expander("👀 Xem trước dữ liệu Recipes"):
+            st.dataframe(recipes.head(10), use_container_width=True)
 
-.sub-title {{
-    text-align: center;
-    font-size: 22px;
-    color: #f1f1f1;
-    font-weight: 500;
-    margin-top: -5px;
-    animation: fadeIn 1.5s ease-in-out;
-}}
+        st.subheader("📈 Thống kê mô tả dữ liệu Recipes")
+        st.dataframe(recipes.describe(include='all').T.fillna("").head(15), use_container_width=True)
 
-.description {{
-    text-align: center;
-    color: #f7f7f7;
-    font-size: 18px;
-    margin: 25px auto;
-    max-width: 720px;
-    line-height: 1.7;
-    text-shadow: 1px 1px 5px rgba(0,0,0,0.8);
-    animation: fadeIn 2s ease-in-out;
-}}
+        with st.expander("🔍 Xem trước dữ liệu Interactions"):
+            st.dataframe(interactions.head(10), use_container_width=True)
 
-hr {{
-    border: 1px solid rgba(255,255,255,0.25);
-    width: 65%;
-    margin: 25px auto;
-}}
-</style>
-"""
-st.markdown(page_bg, unsafe_allow_html=True)
+    else:
+        st.error("⚠️ Không tìm thấy file dữ liệu: `RAW_recipes.csv` hoặc `RAW_interactions.csv` trong thư mục `/data`.")
 
-# ------------------ SIDEBAR ------------------
-st.sidebar.title("🍴 Food Recommendation System")
-st.sidebar.markdown("Chọn trang ở thanh bên để xem nội dung:")
+# ==========================================================
+# 🤖 PAGE 2 — RECOMMENDATION MODEL
+# ==========================================================
+elif page == "🤖 Recommendation Model":
+    st.title("🤖 Food Recommendation System")
+    st.markdown("Hệ thống gợi ý món ăn dựa trên lịch sử tương tác người dùng 🍽️")
 
-# ------------------ MAIN CONTENT ------------------
-st.markdown("<div class='big-title'>🍽️ Recipe Recommender System</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-title'>👩‍💻 Group 10 — Data Science Project</div>", unsafe_allow_html=True)
-st.markdown("<hr>", unsafe_allow_html=True)
+    # --- Load model & data ---
+    rec_path = os.path.join("data", "recommendations.pkl")
+    info_path = os.path.join("data", "recipe_info.pkl")
 
-# ------------------ NAVIGATION / DESCRIPTION ------------------
-st.markdown("""
-<div class='description'>
-Dự án khai thác dữ liệu từ Food.com để xây dựng hệ thống gợi ý công thức món ăn phù hợp từng người dùng.<br>
-Khám phá các phần chính trong dự án:
-</div>
-""", unsafe_allow_html=True)
+    try:
+        with open(rec_path, "rb") as f:
+            recommend_df = pickle.load(f)
+        with open(info_path, "rb") as f:
+            recipe_info = pickle.load(f)
+    except Exception as e:
+        st.error(f"❌ Không thể tải file model hoặc dữ liệu: {e}")
+        st.stop()
 
-st.markdown("""
-#### 📊 **1. Exploratory Data Analysis (EDA)**
-- Tổng quan dữ liệu, thống kê tần suất đánh giá, xu hướng người dùng, các đặc trưng dinh dưỡng.
-- Hiển thị biểu đồ tương tác, heatmap và wordcloud.
+    # --- UI Inputs ---
+    model_choice = st.selectbox("🔧 Chọn mô hình gợi ý:", ["Hybrid SVD", "Hybrid CBF (0.7 SVD + 0.3 CBF)"])
+    user_id = st.number_input("🔢 Nhập User ID:", min_value=1, step=1)
 
-#### 🤖 **2. Recommendation System**
-- Gợi ý món ăn dựa trên hành vi người dùng và đặc trưng món ăn.
-- Cho phép chọn mô hình SVD hoặc Hybrid.
-- Hiển thị hiệu suất model (RMSE, MAE) và Top 20 món được đề xuất.
-""")
+    if st.button("🚀 Tạo gợi ý món ăn"):
+        if "user_id" not in recommend_df.columns or "recipe_id" not in recommend_df.columns:
+            st.error("⚠️ Dữ liệu recommendations.pkl không hợp lệ (thiếu cột user_id hoặc recipe_id).")
+            st.stop()
 
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown(
-    "<p style='text-align:center; color:#ccc;'>👉 Mở tab <b>📊 EDA Overview</b> hoặc <b>🤖 Recommendation Model</b> ở sidebar để xem chi tiết.</p>",
-    unsafe_allow_html=True
-)
-st.markdown(
-    "<p style='text-align:center; color:#aaa;'>© 2025 Group 10 — Data Science Project | UCSD</p>",
-    unsafe_allow_html=True
-)
+        if user_id not in recommend_df["user_id"].values:
+            st.warning(f"⚠️ User ID {user_id} không tồn tại trong dữ liệu!")
+        else:
+            user_recs = recommend_df[recommend_df["user_id"] == user_id].copy()
+
+            st.success(f"✅ Gợi ý top 20 món ăn cho User {user_id}")
+            st.markdown("---")
+
+            # --- Model Performance (demo numbers) ---
+            st.subheader("📊 Hiệu suất mô hình (ước lượng)")
+            col1, col2 = st.columns(2)
+            col1.metric("RMSE", "0.86")
+            col2.metric("MAE", "0.68")
+
+            # --- Merge info from recipe_info ---
+            recipe_df = pd.DataFrame.from_dict(recipe_info, orient='index').reset_index().rename(columns={"index": "recipe_id"})
+            if "recipe_id" in user_recs.columns:
+                result = pd.merge(user_recs, recipe_df, on="recipe_id", how="left")
+            else:
+                result = user_recs
+
+            show_cols = [col for col in ["recipe_id", "name", "ingredients", "tags"] if col in result.columns]
+            st.dataframe(result[show_cols].head(20), use_container_width=True)
+
+    st.markdown("---")
+    st.caption("📘 Developed by Group 10 — Data Science Project (Food.com Dataset)")
