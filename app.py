@@ -14,40 +14,78 @@ PLACEHOLDER_NO_KEY = "https://via.placeholder.com/600x400?text=No+API+Key"
 PLACEHOLDER_NO_IMAGE = "https://via.placeholder.com/600x400?text=No+Image"
 
 @st.cache_data(show_spinner=False)
-def get_image_url(name, tags=None):
+def get_image_url(name: str):
     """
-    Lấy ảnh minh hoạ cho món ăn bằng Spoonacular.
-    - Dựa CHỦ YẾU vào tên món (name).
-    - Nếu name kiểu 'Recipe 71606' → bỏ phần đó, chỉ lấy phần chữ.
-    - Nếu vẫn trống → dùng query 'food'.
+    Lấy ảnh minh hoạ cho món ăn bằng Spoonacular, cố gắng xử lý tên cho “thông minh”:
+    - Bỏ chuỗi 'Recipe 71606'… nếu có.
+    - Chuẩn hoá khoảng trắng/ký tự lạ.
+    - Thử lần lượt: full name → phần trước dấu phẩy/with/and → từ cuối cùng.
+    - Nếu vẫn không được thì trả placeholder.
+    Kết quả được cache theo tên ⇒ cùng 1 món chỉ gọi API 1 lần.
     """
     if not SPOONACULAR_API_KEY:
-        return "https://via.placeholder.com/600x400?text=No+API+Key"
+        return PLACEHOLDER_NO_KEY
 
-    # Bỏ 'Recipe 12345' nếu có
-    base = re.sub(r"(?i)recipe\s*\d*", "", str(name)).strip()
+    raw = str(name)
+
+    # Bỏ "Recipe 71606" nếu tồn tại trong name
+    base = re.sub(r"(?i)recipe\s*\d*", "", raw)
+    # Thay _ và - bằng khoảng trắng, gom nhiều khoảng trắng
+    base = re.sub(r"[_\-]", " ", base)
+    base = re.sub(r"\s+", " ", base).strip()
+
     if not base:
         base = "food"
 
-    url = "https://api.spoonacular.com/recipes/complexSearch"
-    params = {
-        "query": base,
-        "number": 1,
-        "apiKey": SPOONACULAR_API_KEY,
-    }
+    def query_spoonacular(q: str) -> str | None:
+        """Gọi Spoonacular, trả về URL ảnh nếu có, ngược lại None."""
+        url = "https://api.spoonacular.com/recipes/complexSearch"
+        params = {
+            "query": q,
+            "number": 1,
+            "apiKey": SPOONACULAR_API_KEY,
+        }
+        try:
+            res = requests.get(url, params=params, timeout=5)
+            # Nếu hết quota hoặc lỗi 4xx/5xx thì in ra log cho dễ debug
+            if not res.ok:
+                print("Spoonacular HTTP error:", res.status_code, res.text[:200])
+                return None
 
-    try:
-        res = requests.get(url, params=params, timeout=5)
-        res.raise_for_status()
-        data = res.json()
-        results = data.get("results") or []
-        if results and results[0].get("image"):
-            return results[0]["image"]
-    except Exception as e:
-        print("Spoonacular error:", e)
+            data = res.json()
+            results = data.get("results") or []
+            if results and results[0].get("image"):
+                img = results[0]["image"]
+                print("DEBUG Image for", q, "→", img)
+                return img
+        except Exception as e:
+            print("Spoonacular exception:", e)
+        return None
 
-    # fallback nếu không có hình
-    return "https://via.placeholder.com/600x400?text=No+Image"
+    # Chiến lược 1: dùng full name
+    img = query_spoonacular(base)
+    if img:
+        return img
+
+    # Chiến lược 2: lấy phần trước dấu phẩy / ' with ' / ' and '
+    simplified = re.split(r",| with | and ", base, maxsplit=1)[0].strip()
+    if simplified and simplified.lower() != base.lower():
+        img = query_spoonacular(simplified)
+        if img:
+            return img
+
+    # Chiến lược 3: dùng từ cuối cùng (thường là loại món: cake, soup, crepes,…)
+    parts = base.split()
+    if parts:
+        last_word = parts[-1]
+        if last_word and last_word.lower() not in {simplified.lower(), base.lower()}:
+            img = query_spoonacular(last_word)
+            if img:
+                return img
+
+    # Không tìm được ảnh phù hợp
+    print("DEBUG: No image for", raw, "→ dùng placeholder")
+    return PLACEHOLDER_NO_IMAGE
 
 
 
@@ -741,6 +779,9 @@ with tab2:
             tags = ", ".join(tag_list[:5]) if tag_list else "No tags"
 
             img_url = get_image_url(name)
+            st.image(img_url, caption=name, use_container_width=True)
+            st.markdown(f"[🔗 Mở ảnh trong tab mới]({img_url})")
+
 
 
 
@@ -766,6 +807,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
