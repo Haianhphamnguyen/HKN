@@ -690,33 +690,66 @@ with tab2:
             </div>
             """, unsafe_allow_html=True)
 
-        st.markdown("""
+                st.markdown("""
         <div class="section-header" style="margin-top: 2rem;">
-            <h3>🍽️ Top-20 Recipe Đề Xuất</h3>
+            <h3>🍽️ Top-20 Recipe Đề Xuất (chỉ hiển thị món có tên rõ ràng & có hình)</h3>
         </div>
         """, unsafe_allow_html=True)
 
-        # Grid 4 cột các recipe
-        cols = st.columns(4)
-        for i, rid in enumerate(top20):
-            with cols[i % 4]:
-                rid_key = int(rid)
+        # Lọc Top-20: chỉ giữ món có tên cụ thể và tìm được hình
+        placeholder_prefix = "https://via.placeholder.com"
+        filtered_recipes = []
 
-                info = recipe_info.get(rid_key, {})
-                name = info.get('name', f"Recipe {rid_key}")
-                tags = ", ".join(info.get('tags', [])[:2]) if info.get('tags') else "No tags"
-                
-                st.markdown(f"""
-                <div class='recipe-card'>
-                    <p style='margin:0;font-weight:600;color:#333;font-size:1.1rem;'>{name}</p>
-                    <p style='margin:0.3rem 0 0;font-size:0.9rem;color:#666;'><code>{rid_key}</code></p>
-                    <p style='margin:0.2rem 0 0;font-size:0.85rem;color:#FF6B6B;'>Tags: {tags}</p>
-                </div>
-                """, unsafe_allow_html=True)
+        for rid in top20:
+            rid_key = int(rid)
+            info = recipe_info.get(rid_key, {})
+            raw_name = info.get("name") or ""
+            name = raw_name.strip()
 
-                # Nút xem hình cho từng recipe
-                if st.button("📷 Xem hình", key=f"img_{rid_key}"):
-                    st.session_state["selected_recipe"] = rid_key
+            # Bỏ các recipe không có tên hoặc tên kiểu "Recipe 71606"
+            if not name or re.fullmatch(r"(?i)recipe\s*\d+", name):
+                continue
+
+            tags_list = info.get("tags", []) or []
+            tags_text = ", ".join(tags_list[:2]) if tags_list else "No tags"
+
+            # Thử lấy hình cho món này
+            img_url = get_image_url(name)
+
+            # Nếu chỉ ra placeholder (No Image / No API Key) thì bỏ qua
+            if not img_url or img_url.startswith(placeholder_prefix):
+                continue
+
+            filtered_recipes.append(
+                {"id": rid_key, "name": name, "tags": tags_text}
+            )
+
+        if not filtered_recipes:
+            st.warning(
+                "Không có công thức nào trong Top-20 vừa chọn vừa có tên rõ ràng "
+                "vừa tìm được hình minh hoạ. Hãy thử chọn user hoặc model khác."
+            )
+        else:
+            # Grid 4 cột các recipe sau khi lọc
+            cols = st.columns(4)
+            for i, rec in enumerate(filtered_recipes):
+                rid_key = rec["id"]
+                name = rec["name"]
+                tags = rec["tags"]
+
+                with cols[i % 4]:
+                    st.markdown(f"""
+                    <div class='recipe-card'>
+                        <p style='margin:0;font-weight:600;color:#333;font-size:1.1rem;'>{name}</p>
+                        <p style='margin:0.3rem 0 0;font-size:0.9rem;color:#666;'><code>{rid_key}</code></p>
+                        <p style='margin:0.2rem 0 0;font-size:0.85rem;color:#FF6B6B;'>Tags: {tags}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    # Nút xem hình cho từng recipe (chắc chắn có hình)
+                    if st.button("📷 Xem hình", key=f"img_{rid_key}"):
+                        st.session_state["selected_recipe"] = rid_key
+
 
         # Panel hiển thị hình minh hoạ cho món đang chọn
         selected_id = st.session_state.get("selected_recipe")
@@ -752,6 +785,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
