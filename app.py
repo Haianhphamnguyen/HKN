@@ -744,6 +744,7 @@ with tab2:
         if selected_id is not None:
             info = recipe_info.get(selected_id, {})
             name = info.get('name', f"Recipe {selected_id}")
+            tag_list = info.get('tags', []) or []
             tags = ", ".join(tag_list[:5]) if tag_list else "No tags"
 
             img_url = get_image_url(name)
@@ -768,6 +769,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
