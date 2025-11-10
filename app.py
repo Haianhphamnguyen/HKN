@@ -39,6 +39,7 @@ def get_image_url(name, tags=None):
         res.raise_for_status()
         data = res.json()
         results = data.get("results") or []
+        print("DEBUG Spoonacular:", base, "→", results[:1])
         if results and results[0].get("image"):
             return results[0]["image"]
     except Exception as e:
@@ -757,6 +758,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
