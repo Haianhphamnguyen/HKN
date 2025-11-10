@@ -3,8 +3,9 @@ import pickle
 import base64
 from pathlib import Path
 import os
-import requests
-import re  # thêm dòng này
+import requests  # nếu không dùng nữa cũng được bỏ, nhưng không sao
+import re
+import urllib.parse
 
 # === IMAGE SEARCH VIA BING (DÙNG CHỦ YẾU TÊN MÓN) ===
 BING_IMAGE_SEARCH_KEY = st.secrets.get("BING_IMAGE_SEARCH_KEY") or os.getenv("BING_IMAGE_SEARCH_KEY")
@@ -16,46 +17,23 @@ BING_IMAGE_SEARCH_ENDPOINT = (
 @st.cache_data(show_spinner=False)
 def get_image_url(name, tags=None):
     """
-    Tìm ảnh minh hoạ theo TÊN MÓN bằng Bing Image Search.
-    - Không dùng tags để tránh nhiễu.
-    - Nếu name là kiểu 'Recipe 71606' → bỏ phần 'Recipe 71606' đi.
-    - Nếu vẫn trống → fallback 'food recipe'.
+    Trả về URL ảnh minh hoạ món ăn dựa trên TÊN.
+    - Không cần API key.
+    - Dựa hoàn toàn vào tên món (name).
+    - Sử dụng Unsplash Source: https://source.unsplash.com
     """
-    if not BING_IMAGE_SEARCH_KEY:
-        return "https://via.placeholder.com/600x400?text=No+API+Key"
-
     # Làm sạch name: bỏ 'Recipe 12345' nếu có
     base = re.sub(r"(?i)recipe\s*\d*", "", str(name)).strip()
     if not base:
-        base = str(name).strip()
+        base = "food dish"
 
-    if base:
-        query = f"{base} recipe"
-    else:
-        query = "food recipe"
+    # Encode để đưa vào URL
+    query = urllib.parse.quote_plus(base)
 
-    headers = {
-        "Ocp-Apim-Subscription-Key": BING_IMAGE_SEARCH_KEY
-    }
-    params = {
-        "q": query,
-        "count": 1,
-        "safeSearch": "Moderate",
-    }
+    # Unsplash Source: trả về 1 ảnh phù hợp với query
+    # 800x600 bạn có thể chỉnh lại tuỳ ý
+    return f"https://source.unsplash.com/800x600/?{query}"
 
-    try:
-        res = requests.get(BING_IMAGE_SEARCH_ENDPOINT, headers=headers, params=params, timeout=5)
-        res.raise_for_status()
-        data = res.json()
-        results = data.get("value") or []
-        if results:
-            # Ưu tiên link ảnh gốc, nếu không có thì dùng thumbnail
-            return results[0].get("contentUrl") or results[0].get("thumbnailUrl")
-    except Exception as e:
-        print("Bing image search error:", e)
-
-    # Không tìm được ảnh phù hợp
-    return "https://via.placeholder.com/600x400?text=No+Image"
 
 
 
@@ -768,6 +746,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
