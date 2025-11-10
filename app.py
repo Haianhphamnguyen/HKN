@@ -57,7 +57,8 @@ def get_image_url(name: str):
             if results and results[0].get("image"):
                 img = results[0]["image"]
                 print("DEBUG Image for", q, "→", img)
-                return img
+                img_hires = re.sub(r'-\d+x\d+(\.\w+)$', r'-556x370\1', img)
+                return img_hires
         except Exception as e:
             print("Spoonacular exception:", e)
         return None
@@ -819,7 +820,7 @@ with tab2:
             """, unsafe_allow_html=True)
 
             # Dùng cả st.image và link text để dễ debug
-            st.image(img_url, caption=name, use_container_width=True)
+            st.image(img_url, caption=name, width=400)
             st.markdown(f"[🔗 Mở ảnh trong tab mới]({img_url})")
             st.caption(f"Debug image URL: {img_url}")
 
@@ -834,6 +835,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
