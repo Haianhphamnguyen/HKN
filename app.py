@@ -98,6 +98,42 @@ st.set_page_config(
 )
 
 # --- helper ---
+def get_short_recipe_snippet(name: str, tags=None):
+    """
+    Sinh gợi ý rất ngắn về nguyên liệu & cách làm dựa vào tên món (và tags nếu có).
+    Chỉ mang tính mô tả, không phải công thức chính xác.
+    """
+    name_l = (name or "").lower()
+    tag_text = " ".join(tags or []).lower()
+    text = name_l + " " + tag_text
+
+    # Đồ uống
+    if any(k in text for k in ["drink", "smoothie", "juice", "shake", "cocktail"]):
+        ingredients = "Sữa hoặc nước, trái cây/siro, đường (hoặc mật ong), đá."
+        steps = "Cho tất cả nguyên liệu vào máy xay, xay mịn rồi rót ra ly, thêm đá tuỳ thích."
+    # Bánh
+    elif any(k in text for k in ["cake", "tart", "muffin", "brownie", "cupcake"]):
+        ingredients = "Bột mì, bơ, đường, trứng, sữa và hương liệu (vanilla, cacao...)."
+        steps = "Trộn nguyên liệu khô và ướt, đổ vào khuôn rồi nướng đến khi bánh chín vàng."
+    # Salad
+    elif "salad" in text:
+        ingredients = "Rau xanh, cà chua, dưa leo, topping (phô mai/thịt), dầu ô liu & giấm."
+        steps = "Rửa sạch, cắt nhỏ rau củ, trộn với sốt dầu giấm và topping rồi dùng ngay."
+    # Soup / stew
+    elif any(k in text for k in ["soup", "stew", "broth", "chowder"]):
+        ingredients = "Nước dùng, rau củ, thịt/cá, gia vị cơ bản (muối, tiêu, hành, tỏi...)."
+        steps = "Xào sơ nguyên liệu, thêm nước dùng và hầm đến khi mềm, nêm nếm lại cho vừa ăn."
+    # Mì / pasta
+    elif any(k in text for k in ["pasta", "spaghetti", "noodle"]):
+        ingredients = "Mì/pasta, nước sốt (cà chua hoặc kem), thịt/cá/rau và phô mai."
+        steps = "Luộc chín mì, nấu sốt riêng rồi trộn cùng mì, thêm phô mai khi còn nóng."
+    # Mặc định
+    else:
+        ingredients = "Đạm chính (thịt/cá/trứng), rau củ kèm theo, gia vị cơ bản và dầu ăn."
+        steps = "Sơ chế nguyên liệu, áp chảo/xào/nấu chín rồi nêm nếm lại cho vừa khẩu vị."
+
+    return ingredients, steps
+
 def get_base64_image(image_path):
     with open(image_path, "rb") as img_file:
         return base64.b64encode(img_file.read()).decode()
@@ -796,26 +832,18 @@ with tab2:
                 st.caption(f"Debug image URL: {img_url}")
 
             with col_info:
-                st.markdown(f"""
-                <div class="card">
-                    <h4 style="margin-top:0;margin-bottom:0.5rem;">{name}</h4>
-                    <p style="margin:0.25rem 0;">
-                        <strong>Recipe ID:</strong> <code>{selected_id}</code>
-                    </p>
-                    <p style="margin:0.25rem 0;">
-                        <strong>Tags:</strong> {tags}
-                    </p>
-                    <p style="margin-top:0.75rem;font-size:0.9rem;color:#4a5568;">
-                        Bạn có thể dùng tên món hoặc ID này để tra cứu chi tiết công thức 
-                        trong dataset gốc hoặc trên Internet.
-                    </p>
-                    <p style="margin-top:0.5rem;">
-                        <a href="https://www.google.com/search?q={name.replace(' ', '+')}+recipe" target="_blank">
-                            🔗 Tìm công thức chi tiết trên web
-                        </a>
-                    </p>
-                </div>
-                """, unsafe_allow_html=True)
+                # Sinh gợi ý nguyên liệu & cách làm ngắn
+                short_ing, short_steps = get_short_recipe_snippet(name, tag_list)
+
+                st.markdown(f"### {name}")
+                st.markdown(f"**Recipe ID:** `{selected_id}`")
+                st.markdown(f"**Tags:** {tags}")
+                st.markdown(f"**Gợi ý nguyên liệu:** {short_ing}")
+                st.markdown(f"**Cách làm gợi ý:** {short_steps}")
+                st.markdown(
+                    f"[🔍 Xem công thức chi tiết hơn trên web]"
+                    f"(https://www.google.com/search?q={name.replace(' ', '+')}+recipe)"
+                )
 
             
 
@@ -827,6 +855,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
