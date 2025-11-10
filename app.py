@@ -594,13 +594,12 @@ with tab2:
         <h2>⚙️ Chọn Model & User</h2>
     </div>
     """, unsafe_allow_html=True)
-    # Khởi tạo state cho tab khuyến nghị
+
+    # State cho tab khuyến nghị
     if "show_recs" not in st.session_state:
         st.session_state["show_recs"] = False
     if "selected_recipe" not in st.session_state:
         st.session_state["selected_recipe"] = None
-
-    col1, col2 = st.columns(2)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -628,12 +627,12 @@ with tab2:
             help="10 user có nhiều tương tác nhất"
         )
 
-        # Nút sinh gợi ý: chỉ bật cờ, không vẽ luôn (để các nút khác còn dùng được)
+    # Nút sinh gợi ý
     if st.button("🎯 Recommend Top-20", type="primary", use_container_width=True):
         st.session_state["show_recs"] = True
-        st.session_state["selected_recipe"] = None  # reset món đang chọn
+        st.session_state["selected_recipe"] = None  # reset khi recommend lại
 
-    # Nếu đã bấm Recommend ít nhất một lần thì vẽ phần còn lại
+    # Nếu đã bấm Recommend ít nhất 1 lần thì hiển thị kết quả
     if st.session_state["show_recs"]:
         top20 = recs[model_key][user_id]
 
@@ -643,7 +642,7 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-        # Metrics cho 3 models (giữ nguyên logic như cũ)
+        # Metrics cho 3 models (giữ nguyên như bản gốc)
         if model_key == 'fast':
             rmse, r2 = "0.9471", "0.0869"
             p20, r20, ndcg20, map20 = "0.0050", "0.1000", "0.0384", "0.0222"
@@ -693,12 +692,12 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
+        # Grid 4 cột các recipe
         cols = st.columns(4)
         for i, rid in enumerate(top20):
             with cols[i % 4]:
                 rid_key = int(rid)
 
-                # Safe get với fallback
                 info = recipe_info.get(rid_key, {})
                 name = info.get('name', f"Recipe {rid_key}")
                 tags = ", ".join(info.get('tags', [])[:2]) if info.get('tags') else "No tags"
@@ -711,11 +710,11 @@ with tab2:
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Nút xem hình cho từng món
+                # Nút xem hình cho từng recipe
                 if st.button("📷 Xem hình", key=f"img_{rid_key}"):
                     st.session_state["selected_recipe"] = rid_key
 
-        # Panel hiển thị ảnh & thông tin cho món đang chọn
+        # Panel hiển thị hình minh hoạ cho món đang chọn
         selected_id = st.session_state.get("selected_recipe")
         if selected_id is not None:
             info = recipe_info.get(selected_id, {})
@@ -730,7 +729,10 @@ with tab2:
             </div>
             """, unsafe_allow_html=True)
 
+            # Dùng cả st.image và link text để dễ debug
             st.image(img_url, caption=name, use_container_width=True)
+            st.markdown(f"[🔗 Mở ảnh trong tab mới]({img_url})")
+
             st.markdown(f"**Recipe ID:** `{selected_id}`  \n**Tags:** {tags}")
 
 
@@ -741,6 +743,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
