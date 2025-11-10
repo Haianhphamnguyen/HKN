@@ -2,17 +2,27 @@ import streamlit as st
 import pickle
 import base64
 from pathlib import Path
+
 import os
-import requests  # nếu không dùng nữa cũng được bỏ, nhưng không sao
+import requests
 import re
-import urllib.parse
+
+
 SPOONACULAR_API_KEY = st.secrets["SPOONACULAR_API_KEY"]
 
 @st.cache_data(show_spinner=False)
 def get_image_url(name, tags=None):
+    """
+    Tìm ảnh minh hoạ cho món ăn bằng Spoonacular.
+    - Dựa CHỦ YẾU vào tên món (name).
+    - Nếu name kiểu 'Recipe 71606' → bỏ phần đó, chỉ lấy phần chữ.
+    - Nếu vẫn trống → dùng query 'food'.
+    - Trả về URL ảnh (field 'image') nếu có, nếu không thì trả placeholder.
+    """
     if not SPOONACULAR_API_KEY:
         return "https://via.placeholder.com/600x400?text=No+API+Key"
 
+    # Bỏ 'Recipe 12345' trong tên nếu có
     base = re.sub(r"(?i)recipe\s*\d*", "", str(name)).strip()
     if not base:
         base = "food"
@@ -20,7 +30,7 @@ def get_image_url(name, tags=None):
     url = "https://api.spoonacular.com/recipes/complexSearch"
     params = {
         "query": base,
-        "number": 1,
+        "number": 1,              # chỉ cần 1 ảnh minh hoạ
         "apiKey": SPOONACULAR_API_KEY,
     }
 
@@ -34,12 +44,8 @@ def get_image_url(name, tags=None):
     except Exception as e:
         print("Spoonacular error:", e)
 
+    # Không tìm được ảnh phù hợp
     return "https://via.placeholder.com/600x400?text=No+Image"
-
-
-
-
-
 
 
 st.set_page_config(
@@ -727,7 +733,8 @@ with tab2:
             tag_list = info.get('tags', []) or []
             tags = ", ".join(tag_list[:5]) if tag_list else "No tags"
 
-            img_url = get_image_url(name, tag_list)
+            img_url = get_image_url(name)
+
 
 
             st.markdown("""
@@ -750,6 +757,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
