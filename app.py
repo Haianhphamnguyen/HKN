@@ -4,38 +4,10 @@ import base64
 from pathlib import Path
 import os
 import requests
+import re
 
-# ====== IMAGE API CONFIG (Unsplash) ======
-UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")  # set biến môi trường khi chạy/deploy
 
-@st.cache_data(show_spinner=False)
-def get_image_url(query: str) -> str:
-    """
-    Lấy ảnh minh hoạ món ăn từ Unsplash theo tên công thức.
-    Nếu không có API key hoặc lỗi → trả về ảnh placeholder.
-    """
-    if not UNSPLASH_ACCESS_KEY:
-        # Chưa cấu hình key vẫn cho app chạy bình thường
-        return "https://via.placeholder.com/600x400?text=No+API+Key"
 
-    url = "https://api.unsplash.com/search/photos"
-    params = {
-        "query": f"{query} food recipe",
-        "per_page": 1,
-        "orientation": "landscape",
-        "client_id": UNSPLASH_ACCESS_KEY,
-    }
-
-    try:
-        res = requests.get(url, params=params, timeout=5)
-        res.raise_for_status()
-        data = res.json()
-        if data.get("results"):
-            return data["results"][0]["urls"]["regular"]
-        return "https://via.placeholder.com/600x400?text=No+Image"
-    except Exception as e:
-        print("Image fetch error:", e)
-        return "https://via.placeholder.com/600x400?text=Error"
 
 st.set_page_config(
     page_title="NHÓM 8- Recipe Recommender",
@@ -719,7 +691,7 @@ with tab2:
         if selected_id is not None:
             info = recipe_info.get(selected_id, {})
             name = info.get('name', f"Recipe {selected_id}")
-            tags = ", ".join(info.get('tags', [])[:5]) if info.get('tags') else "No tags"
+            tags = ", ".join(tag_list[:5]) if tag_list else "No tags"
 
             img_url = get_image_url(name)
 
@@ -743,6 +715,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
