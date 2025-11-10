@@ -4,7 +4,60 @@ import base64
 from pathlib import Path
 import os
 import requests
-import re
+import re  # thêm dòng này
+
+UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+
+@st.cache_data(show_spinner=False)
+def get_image_url(name, tags=None):
+    """
+    Lấy ảnh minh hoạ món ăn từ Unsplash.
+    - Nếu tên chỉ là 'Recipe 71606' → bỏ phần 'Recipe 71606', ưu tiên tags.
+    - Nếu vẫn không ra → fallback query 'delicious home cooked food'.
+    """
+    if tags is None:
+        tags = []
+
+    if not UNSPLASH_ACCESS_KEY:
+        return "https://via.placeholder.com/600x400?text=No+API+Key"
+
+    # Hàm build query chính
+    def build_query():
+        # Bỏ chữ 'Recipe 12345' trong name
+        base = re.sub(r"(?i)recipe\s*\d*", "", name).strip()
+        parts = []
+
+        if base:
+            parts.append(base)
+
+        if tags:
+            clean_tags = [t.replace("-", " ") for t in tags[:3]]
+            parts.append(" ".join(clean_tags))
+
+        if not parts:
+            return "delicious home cooked food"
+        return " ".join(parts)
+
+    queries = [build_query(), "delicious home cooked food"]
+
+    for q in queries:
+        url = "https://api.unsplash.com/search/photos"
+        params = {
+            "query": q,
+            "per_page": 1,
+            "orientation": "landscape",
+            "client_id": UNSPLASH_ACCESS_KEY,
+        }
+        try:
+            res = requests.get(url, params=params, timeout=5)
+            res.raise_for_status()
+            data = res.json()
+            if data.get("results"):
+                return data["results"][0]["urls"]["regular"]
+        except Exception as e:
+            print("Image fetch error:", e)
+
+    return "https://via.placeholder.com/600x400?text=No+Image"
 
 
 
@@ -715,6 +768,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
