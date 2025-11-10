@@ -42,8 +42,13 @@ def get_image_url(name, tags=None):
         print("DEBUG Spoonacular:", base, "→", results[:1])
         if results and results[0].get("image"):
             return results[0]["image"]
+            img = results[0]["image"]
+            print("DEBUG Image URL:", img)
+            return img
     except Exception as e:
         print("Spoonacular error:", e)
+    print("DEBUG Spoonacular: NO IMAGE, fallback placeholder")
+    return "https://via.placeholder.com/600x400?text=No+Image"
 
     # Không tìm được ảnh phù hợp
     return "https://via.placeholder.com/600x400?text=No+Image"
@@ -747,8 +752,10 @@ with tab2:
             # Dùng cả st.image và link text để dễ debug
             st.image(img_url, caption=name, use_container_width=True)
             st.markdown(f"[🔗 Mở ảnh trong tab mới]({img_url})")
+            st.caption(f"Debug image URL: {img_url}")
 
             st.markdown(f"**Recipe ID:** `{selected_id}`  \n**Tags:** {tags}")
+            
 
 
 # footer
@@ -758,6 +765,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
