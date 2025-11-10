@@ -690,7 +690,7 @@ with tab2:
             </div>
             """, unsafe_allow_html=True)
 
-                st.markdown("""
+        st.markdown("""
         <div class="section-header" style="margin-top: 2rem;">
             <h3>🍽️ Top-20 Recipe Đề Xuất (chỉ hiển thị món có tên rõ ràng & có hình)</h3>
         </div>
@@ -785,6 +785,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
