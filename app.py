@@ -6,33 +6,36 @@ import os
 import requests  # nếu không dùng nữa cũng được bỏ, nhưng không sao
 import re
 import urllib.parse
-
-# === IMAGE SEARCH VIA BING (DÙNG CHỦ YẾU TÊN MÓN) ===
-BING_IMAGE_SEARCH_KEY = st.secrets.get("BING_IMAGE_SEARCH_KEY") or os.getenv("BING_IMAGE_SEARCH_KEY")
-BING_IMAGE_SEARCH_ENDPOINT = (
-    st.secrets.get("BING_IMAGE_SEARCH_ENDPOINT")
-    or os.getenv("BING_IMAGE_SEARCH_ENDPOINT", "https://api.bing.microsoft.com/v7.0/images/search")
-)
+SPOONACULAR_API_KEY = st.secrets["SPOONACULAR_API_KEY"]
 
 @st.cache_data(show_spinner=False)
 def get_image_url(name, tags=None):
-    """
-    Trả về URL ảnh minh hoạ món ăn dựa trên TÊN.
-    - Không cần API key.
-    - Dựa hoàn toàn vào tên món (name).
-    - Sử dụng Unsplash Source: https://source.unsplash.com
-    """
-    # Làm sạch name: bỏ 'Recipe 12345' nếu có
+    if not SPOONACULAR_API_KEY:
+        return "https://via.placeholder.com/600x400?text=No+API+Key"
+
     base = re.sub(r"(?i)recipe\s*\d*", "", str(name)).strip()
     if not base:
-        base = "food dish"
+        base = "food"
 
-    # Encode để đưa vào URL
-    query = urllib.parse.quote_plus(base)
+    url = "https://api.spoonacular.com/recipes/complexSearch"
+    params = {
+        "query": base,
+        "number": 1,
+        "apiKey": SPOONACULAR_API_KEY,
+    }
 
-    # Unsplash Source: trả về 1 ảnh phù hợp với query
-    # 800x600 bạn có thể chỉnh lại tuỳ ý
-    return f"https://source.unsplash.com/800x600/?{query}"
+    try:
+        res = requests.get(url, params=params, timeout=5)
+        res.raise_for_status()
+        data = res.json()
+        results = data.get("results") or []
+        if results and results[0].get("image"):
+            return results[0]["image"]
+    except Exception as e:
+        print("Spoonacular error:", e)
+
+    return "https://via.placeholder.com/600x400?text=No+Image"
+
 
 
 
@@ -724,7 +727,8 @@ with tab2:
             tag_list = info.get('tags', []) or []
             tags = ", ".join(tag_list[:5]) if tag_list else "No tags"
 
-            img_url = get_image_url(name)
+            img_url = get_image_url(name, tag_list)
+
 
             st.markdown("""
             <div class="section-header" style="margin-top: 2rem;">
@@ -746,6 +750,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
