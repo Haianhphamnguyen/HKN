@@ -14,109 +14,40 @@ PLACEHOLDER_NO_KEY = "https://via.placeholder.com/600x400?text=No+API+Key"
 PLACEHOLDER_NO_IMAGE = "https://via.placeholder.com/600x400?text=No+Image"
 
 @st.cache_data(show_spinner=False)
-def get_image_url(name: str, tags=None):
+def get_image_url(name, tags=None):
     """
-    Tìm ảnh minh hoạ cho món ăn qua Spoonacular.
-
-    Chiến lược:
-    - Làm sạch tên: bỏ 'Recipe 71606', ký tự _ - , khoảng trắng thừa.
-    - Thử lần lượt:
-        1. Full name
-        2. Phần trước dấu phẩy / 'with' / 'and'
-        3. Từ cuối cùng (cake, soup, crepes,...)
-        4. Tên + một vài tag “có ích” (dessert, salad, italian,...)
-    - Trả placeholder nếu vẫn không tìm được.
-
-    Kết quả được cache theo (name, tags) nên cùng 1 món
-    chỉ gọi API đúng 1 lần.
+    Lấy ảnh minh hoạ cho món ăn bằng Spoonacular.
+    - Dựa CHỦ YẾU vào tên món (name).
+    - Nếu name kiểu 'Recipe 71606' → bỏ phần đó, chỉ lấy phần chữ.
+    - Nếu vẫn trống → dùng query 'food'.
     """
     if not SPOONACULAR_API_KEY:
-        return PLACEHOLDER_NO_KEY
+        return "https://via.placeholder.com/600x400?text=No+API+Key"
 
-    raw = str(name)
-
-    # Bỏ "Recipe 71606" nếu có trong tên
-    base = re.sub(r"(?i)recipe\s*\d*", "", raw)
-    # Thay _ và - bằng khoảng trắng, gom nhiều khoảng trắng
-    base = re.sub(r"[_\-]", " ", base)
-    base = re.sub(r"\s+", " ", base).strip()
-
+    # Bỏ 'Recipe 12345' nếu có
+    base = re.sub(r"(?i)recipe\s*\d*", "", str(name)).strip()
     if not base:
         base = "food"
 
-    def query_spoonacular(q: str) -> str | None:
-        """Gọi Spoonacular, trả về URL ảnh nếu có, ngược lại None."""
-        url = "https://api.spoonacular.com/recipes/complexSearch"
-        params = {
-            "query": q,
-            "number": 1,
-            "apiKey": SPOONACULAR_API_KEY,
-        }
-        try:
-            res = requests.get(url, params=params, timeout=5)
-            if not res.ok:
-                # In ra log để nếu hết quota / lỗi API thì xem được
-                print("Spoonacular HTTP error:", res.status_code, res.text[:150])
-                return None
+    url = "https://api.spoonacular.com/recipes/complexSearch"
+    params = {
+        "query": base,
+        "number": 1,
+        "apiKey": SPOONACULAR_API_KEY,
+    }
 
-            data = res.json()
-            results = data.get("results") or []
-            if results and results[0].get("image"):
-                img = results[0]["image"]
-                # Tăng kích thước: đổi ...-312x231.jpg thành ...-556x370.jpg
-                img = re.sub(r"-\d+x\d+(\.\w+)$", r"-556x370\1", img)
-                return img
-        except Exception as e:
-            print("Spoonacular exception:", e)
-        return None
+    try:
+        res = requests.get(url, params=params, timeout=5)
+        res.raise_for_status()
+        data = res.json()
+        results = data.get("results") or []
+        if results and results[0].get("image"):
+            return results[0]["image"]
+    except Exception as e:
+        print("Spoonacular error:", e)
 
-    # Danh sách các query sẽ thử dần
-    candidates = []
-
-    # 1. Full name
-    candidates.append(base)
-
-    # 2. Phần trước dấu phẩy / ' with ' / ' and '
-    simplified = re.split(r",| with | and ", base, maxsplit=1)[0].strip()
-    if simplified and simplified.lower() != base.lower():
-        candidates.append(simplified)
-
-    # 3. Từ cuối cùng (thường là loại món)
-    parts = base.split()
-    if parts:
-        last = parts[-1]
-        if last and last.lower() not in {simplified.lower(), base.lower()}:
-            candidates.append(last)
-
-    # 4. Dùng một ít tag “có ích” làm từ khoá phụ
-    if tags:
-        useful_tags = []
-        for t in tags:
-            tl = t.lower()
-            if any(x in tl for x in [
-                "dessert", "salad", "soup", "cake", "drink",
-                "breakfast", "dinner", "lunch", "snack",
-                "italian", "french", "chinese", "mexican",
-                "viet", "vietnamese"
-            ]):
-                useful_tags.append(t)
-        if useful_tags:
-            tag_query = base + " " + " ".join(useful_tags[:2])
-            candidates.append(tag_query)
-
-    # Thử lần lượt các query, bỏ trùng
-    seen = set()
-    for q in candidates:
-        q_norm = q.lower().strip()
-        if not q_norm or q_norm in seen:
-            continue
-        seen.add(q_norm)
-        img = query_spoonacular(q)
-        if img:
-            return img
-
-    print("DEBUG: No image for", raw, "→ dùng placeholder")
-    return PLACEHOLDER_NO_IMAGE
+    # fallback nếu không có hình
+    return "https://via.placeholder.com/600x400?text=No+Image"
 
 
 
@@ -772,40 +703,32 @@ with tab2:
 
         st.markdown("""
         <div class="section-header" style="margin-top: 2rem;">
-            <h3>🍽️ Top-20 Recipe Đề Xuất (chỉ hiển thị món có tên rõ ràng & có hình)</h3>
-        </div>
-        """, unsafe_allow_html=True)
-
-        st.markdown("""
-        <div class="section-header" style="margin-top: 2rem;">
             <h3>🍽️ Top-20 Recipe Đề Xuất</h3>
         </div>
         """, unsafe_allow_html=True)
 
+        # Grid 4 cột các recipe
         cols = st.columns(4)
-
         for i, rid in enumerate(top20):
-            rid_key = int(rid)
-            info = recipe_info.get(rid_key, {})
-
-            raw_name = (info.get("name") or "").strip()
-            # Nếu name rỗng hẳn thì dùng "Recipe <ID>" làm tên
-            name = raw_name if raw_name else f"Recipe {rid_key}"
-
-            tag_list = info.get("tags", []) or []
-            tags_text = ", ".join(tag_list[:2]) if tag_list else "No tags"
-
             with cols[i % 4]:
+                rid_key = int(rid)
+
+                info = recipe_info.get(rid_key, {})
+                name = info.get('name', f"Recipe {rid_key}")
+                tags = ", ".join(info.get('tags', [])[:2]) if info.get('tags') else "No tags"
+                
                 st.markdown(f"""
                 <div class='recipe-card'>
                     <p style='margin:0;font-weight:600;color:#333;font-size:1.1rem;'>{name}</p>
                     <p style='margin:0.3rem 0 0;font-size:0.9rem;color:#666;'><code>{rid_key}</code></p>
-                    <p style='margin:0.2rem 0 0;font-size:0.85rem;color:#FF6B6B;'>Tags: {tags_text}</p>
+                    <p style='margin:0.2rem 0 0;font-size:0.85rem;color:#FF6B6B;'>Tags: {tags}</p>
                 </div>
                 """, unsafe_allow_html=True)
 
+                # Nút xem hình cho từng recipe
                 if st.button("📷 Xem hình", key=f"img_{rid_key}"):
                     st.session_state["selected_recipe"] = rid_key
+
 
 
 
@@ -817,7 +740,7 @@ with tab2:
             tag_list = info.get('tags', []) or []
             tags = ", ".join(tag_list[:5]) if tag_list else "No tags"
 
-            img_url = get_image_url(name, tag_list)
+            img_url = get_image_url(name)
 
 
 
@@ -843,6 +766,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
