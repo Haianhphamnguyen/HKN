@@ -2,6 +2,40 @@ import streamlit as st
 import pickle
 import base64
 from pathlib import Path
+import os
+import requests
+
+# ====== IMAGE API CONFIG (Unsplash) ======
+UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")  # set biến môi trường khi chạy/deploy
+
+@st.cache_data(show_spinner=False)
+def get_image_url(query: str) -> str:
+    """
+    Lấy ảnh minh hoạ món ăn từ Unsplash theo tên công thức.
+    Nếu không có API key hoặc lỗi → trả về ảnh placeholder.
+    """
+    if not UNSPLASH_ACCESS_KEY:
+        # Chưa cấu hình key vẫn cho app chạy bình thường
+        return "https://via.placeholder.com/600x400?text=No+API+Key"
+
+    url = "https://api.unsplash.com/search/photos"
+    params = {
+        "query": f"{query} food recipe",
+        "per_page": 1,
+        "orientation": "landscape",
+        "client_id": UNSPLASH_ACCESS_KEY,
+    }
+
+    try:
+        res = requests.get(url, params=params, timeout=5)
+        res.raise_for_status()
+        data = res.json()
+        if data.get("results"):
+            return data["results"][0]["urls"]["regular"]
+        return "https://via.placeholder.com/600x400?text=No+Image"
+    except Exception as e:
+        print("Image fetch error:", e)
+        return "https://via.placeholder.com/600x400?text=Error"
 
 st.set_page_config(
     page_title="NHÓM 8- Recipe Recommender",
@@ -560,6 +594,13 @@ with tab2:
         <h2>⚙️ Chọn Model & User</h2>
     </div>
     """, unsafe_allow_html=True)
+    # Khởi tạo state cho tab khuyến nghị
+    if "show_recs" not in st.session_state:
+        st.session_state["show_recs"] = False
+    if "selected_recipe" not in st.session_state:
+        st.session_state["selected_recipe"] = None
+
+    col1, col2 = st.columns(2)
 
     col1, col2 = st.columns(2)
     with col1:
@@ -587,7 +628,13 @@ with tab2:
             help="10 user có nhiều tương tác nhất"
         )
 
+        # Nút sinh gợi ý: chỉ bật cờ, không vẽ luôn (để các nút khác còn dùng được)
     if st.button("🎯 Recommend Top-20", type="primary", use_container_width=True):
+        st.session_state["show_recs"] = True
+        st.session_state["selected_recipe"] = None  # reset món đang chọn
+
+    # Nếu đã bấm Recommend ít nhất một lần thì vẽ phần còn lại
+    if st.session_state["show_recs"]:
         top20 = recs[model_key][user_id]
 
         st.markdown("""
@@ -596,7 +643,7 @@ with tab2:
         </div>
         """, unsafe_allow_html=True)
 
-        # Metrics cho 3 models
+        # Metrics cho 3 models (giữ nguyên logic như cũ)
         if model_key == 'fast':
             rmse, r2 = "0.9471", "0.0869"
             p20, r20, ndcg20, map20 = "0.0050", "0.1000", "0.0384", "0.0222"
@@ -649,10 +696,9 @@ with tab2:
         cols = st.columns(4)
         for i, rid in enumerate(top20):
             with cols[i % 4]:
-                # FIX: Convert numpy int to Python int
                 rid_key = int(rid)
-                
-                # Safe get with fallback
+
+                # Safe get với fallback
                 info = recipe_info.get(rid_key, {})
                 name = info.get('name', f"Recipe {rid_key}")
                 tags = ", ".join(info.get('tags', [])[:2]) if info.get('tags') else "No tags"
@@ -665,6 +711,29 @@ with tab2:
                 </div>
                 """, unsafe_allow_html=True)
 
+                # Nút xem hình cho từng món
+                if st.button("📷 Xem hình", key=f"img_{rid_key}"):
+                    st.session_state["selected_recipe"] = rid_key
+
+        # Panel hiển thị ảnh & thông tin cho món đang chọn
+        selected_id = st.session_state.get("selected_recipe")
+        if selected_id is not None:
+            info = recipe_info.get(selected_id, {})
+            name = info.get('name', f"Recipe {selected_id}")
+            tags = ", ".join(info.get('tags', [])[:5]) if info.get('tags') else "No tags"
+
+            img_url = get_image_url(name)
+
+            st.markdown("""
+            <div class="section-header" style="margin-top: 2rem;">
+                <h3>📷 Hình minh hoạ cho món bạn đã chọn</h3>
+            </div>
+            """, unsafe_allow_html=True)
+
+            st.image(img_url, caption=name, use_container_width=True)
+            st.markdown(f"**Recipe ID:** `{selected_id}`  \n**Tags:** {tags}")
+
+
 # footer
 st.markdown("""
 <div class='footer'>
@@ -672,5 +741,6 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
