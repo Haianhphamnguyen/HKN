@@ -12,8 +12,9 @@ SPOONACULAR_API_KEY = st.secrets["SPOONACULAR_API_KEY"]
 
 @st.cache_data(show_spinner=False)
 def get_image_url(name, tags=None):
-    if not SPOONACULAR_API_KEY:
-        return "https://via.placeholder.com/600x400?text=No+API+Key"
+    # TEST: luôn trả về cùng 1 ảnh, không gọi API
+    return "https://img.spoonacular.com/recipes/640767-312x231.jpg"
+
 
     base = re.sub(r"(?i)recipe\s*\d*", "", str(name)).strip()
     if not base:
@@ -751,6 +752,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
