@@ -6,58 +6,57 @@ import os
 import requests
 import re  # thêm dòng này
 
-UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+# === IMAGE SEARCH VIA BING (DÙNG CHỦ YẾU TÊN MÓN) ===
+BING_IMAGE_SEARCH_KEY = st.secrets.get("BING_IMAGE_SEARCH_KEY") or os.getenv("BING_IMAGE_SEARCH_KEY")
+BING_IMAGE_SEARCH_ENDPOINT = (
+    st.secrets.get("BING_IMAGE_SEARCH_ENDPOINT")
+    or os.getenv("BING_IMAGE_SEARCH_ENDPOINT", "https://api.bing.microsoft.com/v7.0/images/search")
+)
 
 @st.cache_data(show_spinner=False)
 def get_image_url(name, tags=None):
     """
-    Lấy ảnh minh hoạ món ăn từ Unsplash.
-    - Nếu tên chỉ là 'Recipe 71606' → bỏ phần 'Recipe 71606', ưu tiên tags.
-    - Nếu vẫn không ra → fallback query 'delicious home cooked food'.
+    Tìm ảnh minh hoạ theo TÊN MÓN bằng Bing Image Search.
+    - Không dùng tags để tránh nhiễu.
+    - Nếu name là kiểu 'Recipe 71606' → bỏ phần 'Recipe 71606' đi.
+    - Nếu vẫn trống → fallback 'food recipe'.
     """
-    if tags is None:
-        tags = []
-
-    if not UNSPLASH_ACCESS_KEY:
+    if not BING_IMAGE_SEARCH_KEY:
         return "https://via.placeholder.com/600x400?text=No+API+Key"
 
-    # Hàm build query chính
-    def build_query():
-        # Bỏ chữ 'Recipe 12345' trong name
-        base = re.sub(r"(?i)recipe\s*\d*", "", name).strip()
-        parts = []
+    # Làm sạch name: bỏ 'Recipe 12345' nếu có
+    base = re.sub(r"(?i)recipe\s*\d*", "", str(name)).strip()
+    if not base:
+        base = str(name).strip()
 
-        if base:
-            parts.append(base)
+    if base:
+        query = f"{base} recipe"
+    else:
+        query = "food recipe"
 
-        if tags:
-            clean_tags = [t.replace("-", " ") for t in tags[:3]]
-            parts.append(" ".join(clean_tags))
+    headers = {
+        "Ocp-Apim-Subscription-Key": BING_IMAGE_SEARCH_KEY
+    }
+    params = {
+        "q": query,
+        "count": 1,
+        "safeSearch": "Moderate",
+    }
 
-        if not parts:
-            return "delicious home cooked food"
-        return " ".join(parts)
+    try:
+        res = requests.get(BING_IMAGE_SEARCH_ENDPOINT, headers=headers, params=params, timeout=5)
+        res.raise_for_status()
+        data = res.json()
+        results = data.get("value") or []
+        if results:
+            # Ưu tiên link ảnh gốc, nếu không có thì dùng thumbnail
+            return results[0].get("contentUrl") or results[0].get("thumbnailUrl")
+    except Exception as e:
+        print("Bing image search error:", e)
 
-    queries = [build_query(), "delicious home cooked food"]
-
-    for q in queries:
-        url = "https://api.unsplash.com/search/photos"
-        params = {
-            "query": q,
-            "per_page": 1,
-            "orientation": "landscape",
-            "client_id": UNSPLASH_ACCESS_KEY,
-        }
-        try:
-            res = requests.get(url, params=params, timeout=5)
-            res.raise_for_status()
-            data = res.json()
-            if data.get("results"):
-                return data["results"][0]["urls"]["regular"]
-        except Exception as e:
-            print("Image fetch error:", e)
-
+    # Không tìm được ảnh phù hợp
     return "https://via.placeholder.com/600x400?text=No+Image"
+
 
 
 
@@ -769,6 +768,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
