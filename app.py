@@ -770,7 +770,7 @@ with tab2:
 
 
 
-        # Panel hiển thị hình minh hoạ cho món đang chọn
+               # Panel hiển thị hình minh hoạ cho món đang chọn
         selected_id = st.session_state.get("selected_recipe")
         if selected_id is not None:
             info = recipe_info.get(selected_id, {})
@@ -779,11 +779,6 @@ with tab2:
             tags = ", ".join(tag_list[:5]) if tag_list else "No tags"
 
             img_url = get_image_url(name)
-            st.image(img_url, caption=name, use_container_width=True)
-            st.markdown(f"[🔗 Mở ảnh trong tab mới]({img_url})")
-
-
-
 
             st.markdown("""
             <div class="section-header" style="margin-top: 2rem;">
@@ -791,12 +786,37 @@ with tab2:
             </div>
             """, unsafe_allow_html=True)
 
-            # Dùng cả st.image và link text để dễ debug
-            st.image(img_url, caption=name, width=400)
-            st.markdown(f"[🔗 Mở ảnh trong tab mới]({img_url})")
-            st.caption(f"Debug image URL: {img_url}")
+            # 2 cột: trái là ảnh nhỏ, phải là box thông tin
+            col_img, col_info = st.columns([1, 1.4])
 
-            st.markdown(f"**Recipe ID:** `{selected_id}`  \n**Tags:** {tags}")
+            with col_img:
+                # Ảnh nhỏ để nét hơn
+                st.image(img_url, caption=name, width=320)
+                st.markdown(f"[🔗 Mở ảnh trong tab mới]({img_url})")
+                st.caption(f"Debug image URL: {img_url}")
+
+            with col_info:
+                st.markdown(f"""
+                <div class="card">
+                    <h4 style="margin-top:0;margin-bottom:0.5rem;">{name}</h4>
+                    <p style="margin:0.25rem 0;">
+                        <strong>Recipe ID:</strong> <code>{selected_id}</code>
+                    </p>
+                    <p style="margin:0.25rem 0;">
+                        <strong>Tags:</strong> {tags}
+                    </p>
+                    <p style="margin-top:0.75rem;font-size:0.9rem;color:#4a5568;">
+                        Bạn có thể dùng tên món hoặc ID này để tra cứu chi tiết công thức 
+                        trong dataset gốc hoặc trên Internet.
+                    </p>
+                    <p style="margin-top:0.5rem;">
+                        <a href="https://www.google.com/search?q={name.replace(' ', '+')}+recipe" target="_blank">
+                            🔗 Tìm công thức chi tiết trên web
+                        </a>
+                    </p>
+                </div>
+                """, unsafe_allow_html=True)
+
             
 
 
@@ -807,6 +827,7 @@ st.markdown("""
     <p><em>Đề xuất cá nhân hóa từ 872K đánh giá – Hybrid SVD + CBF + Tag Genome</em></p>
 </div>
 """, unsafe_allow_html=True)
+
 
 
 
